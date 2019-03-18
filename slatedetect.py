@@ -29,7 +29,7 @@ class SlateDetection(ClamApp):
 
         new_view = mmif.new_view()
         contain = new_view.new_contain(AnnotationTypes.SD)
-        contain.producer = self.__class__
+        contain.producer = str(self.__class__)
 
         for int_id, (start_frame, end_frame) in enumerate(slate_output):
             annotation = new_view.new_annotation(int_id)
