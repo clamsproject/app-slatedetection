@@ -1,2 +1,10 @@
 opencv-python==3.4.5.20
 pytesseract==0.2.6
+tqdm==4.44.1
+
+Flask==1.0.2
+Flask-DebugToolbar==0.10.1
+Flask-RESTful==0.3.7
+Flask-WTF==0.14.2
+
+git+https://github.com/clamsproject/clams-python-sdk.git@dev
