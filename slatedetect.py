@@ -12,7 +12,7 @@ class SlateDetection(ClamApp):
 
     def appmetadata(self):
         metadata = {"name": "Slate Detection",
-                    "description": "This tool detects slates based on ... ",
+                    "description": "This tool detects slates. ",
                     "vendor": "Team CLAMS",
                     "requires": [MediaTypes.V],
                     "produces": [AnnotationTypes.OCR]}
@@ -43,7 +43,7 @@ class SlateDetection(ClamApp):
         return mmif
 
     @staticmethod
-    def run_slatedetection(video_filename, mmif, stop_after_one=True):
+    def run_slatedetection(video_filename, mmif=None, stop_after_one=True):
         sample_ratio = 30
 
         def process_image(f):
@@ -64,31 +64,58 @@ class SlateDetection(ClamApp):
             else:
                 return False
 
-        cap = cv2.VideoCapture(video_filename)
-        counter = 0
-        slate_result = []
-        in_slate = False
-        start_frame = None
-        while cap.isOpened():
-            ret, f = cap.read()
-            if not ret:
-                break
-            if counter % sample_ratio == 0:
-                processed_frame = process_image(f)
-                result = frame_is_slate(processed_frame)
-                if (result): #in slate
-                    if not in_slate:
-                        in_slate = True
-                        start_frame = counter
-                else:
-                    if (in_slate):
-                        in_slate = False
-                        if (counter-start_frame > 59):
-                            slate_result.append((start_frame, counter))
-                        if stop_after_one:
-                            return slate_result
-            counter += 1
-        return slate_result
+        pos_frames = []
+        if False:
+        # if AnnotationTypes.SHOT in mmif.contains.keys():
+            sample_ratio=1
+            shot_view = mmif.get_view_contains(AnnotationTypes.SHOT)
+            pos_frames = [int((int(a["start"])+int(a["end"]))/2) for a in shot_view["annotations"]]
+
+            cap = cv2.VideoCapture(video_filename)
+            counter = 0
+            result = []
+            while cap.isOpened():
+                ret, f = cap.read()
+                if not ret:
+                    break
+                if pos_frames:
+                    if counter not in pos_frames:
+                        counter += 1
+                        continue
+
+                if counter % sample_ratio == 0:
+                    processed_frame = process_image(f)
+                    result = frame_is_slate(processed_frame)
+                    if result:
+                        ## todo: come back and finish this
+                        pass
+
+        else:
+            cap = cv2.VideoCapture(video_filename)
+            counter = 0
+            slate_result = []
+            in_slate = False
+            start_frame = None
+            while cap.isOpened():
+                ret, f = cap.read()
+                if not ret:
+                    break
+                if counter % sample_ratio == 0:
+                    processed_frame = process_image(f)
+                    result = frame_is_slate(processed_frame)
+                    if (result): #in slate
+                        if not in_slate:
+                            in_slate = True
+                            start_frame = counter
+                    else:
+                        if (in_slate):
+                            in_slate = False
+                            if (counter-start_frame > 59):
+                                slate_result.append((start_frame, counter))
+                            if stop_after_one:
+                                return slate_result
+                counter += 1
+            return slate_result
 
 if __name__ == "__main__":
     slate_tool = SlateDetection()
