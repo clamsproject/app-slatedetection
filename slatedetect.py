@@ -1,6 +1,7 @@
 import cv2
 import pytesseract
 import re
+import os
 
 from clams.serve import ClamApp
 from clams.serialize import *
@@ -96,6 +97,7 @@ class SlateDetection(ClamApp):
             slate_result = []
             in_slate = False
             start_frame = None
+            prev = None
             while cap.isOpened():
                 ret, f = cap.read()
                 if not ret:
@@ -107,13 +109,20 @@ class SlateDetection(ClamApp):
                         if not in_slate:
                             in_slate = True
                             start_frame = counter
+                            start_image = f
                     else:
                         if (in_slate):
                             in_slate = False
                             if (counter-start_frame > 59):
                                 slate_result.append((start_frame, counter))
+                                base_name = video_filename.split("/")[-1]
+                                if not os.path.exists("/data/img"):
+                                    os.mkdir("/data/img")
+                                cv2.imwrite(f"/data/img/{base_name}_{int(start_frame)}.png", start_image)
+                                cv2.imwrite(f"/data/img/{base_name}_{int(counter)}.png", prev)
                             if stop_after_one:
                                 return slate_result
+                        prev = f
                 counter += 1
             return slate_result
 
