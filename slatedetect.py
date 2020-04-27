@@ -98,6 +98,7 @@ class SlateDetection(ClamApp):
             in_slate = False
             start_frame = None
             prev = None
+            start_ts = None
             while cap.isOpened():
                 ret, f = cap.read()
                 if not ret:
@@ -109,17 +110,18 @@ class SlateDetection(ClamApp):
                         if not in_slate:
                             in_slate = True
                             start_frame = counter
+                            start_ts = cap.get(cv2.CAP_PROP_POS_MSEC)
                             start_image = f
                     else:
                         if (in_slate):
                             in_slate = False
                             if (counter-start_frame > 59):
-                                slate_result.append((start_frame, counter))
+                                slate_result.append((start_ts, cap.get(cv2.CAP_PROP_POS_MSEC)))
                                 base_name = video_filename.split("/")[-1]
                                 if not os.path.exists("/data/img"):
                                     os.mkdir("/data/img")
-                                cv2.imwrite(f"/data/img/{base_name}_{int(start_frame)}.png", start_image)
-                                cv2.imwrite(f"/data/img/{base_name}_{int(counter)}.png", prev)
+                                cv2.imwrite(f"/data/img/{base_name}_{int(start_ts)}.png", start_image)
+                                cv2.imwrite(f"/data/img/{base_name}_{int(cv2.CAP_PROP_POS_MSEC)}.png", prev)
                             if stop_after_one:
                                 return slate_result
                         prev = f
