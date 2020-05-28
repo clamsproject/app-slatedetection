@@ -119,7 +119,7 @@ class SlateDetection(ClamApp):
                                 start_timecode = timecode.Timecode(framerate=cap.get(cv2.CAP_PROP_FPS),
                                                                    frames=start_frame)
                                 end_timecode = timecode.Timecode(framerate=cap.get(cv2.CAP_PROP_FPS),
-                                                                 frames=cv2.CAP_PROP_POS_FRAMES)
+                                                                 frames=counter)
                                 slate_result.append((start_timecode, end_timecode))
                                 base_name = video_filename.split("/")[-1]
                                 if not os.path.exists("/data/img"):
