@@ -104,6 +104,8 @@ class SlateDetection(ClamApp):
                 ret, f = cap.read()
                 if not ret:
                     break
+                if counter > (30 * 60 * 5): ## about 5 minutes
+                    break
                 if counter % sample_ratio == 0:
                     processed_frame = process_image(f)
                     result = frame_is_slate(processed_frame)
