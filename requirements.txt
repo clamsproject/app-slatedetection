@@ -1,4 +1,4 @@
-opencv-python==3.4.5.20
+opencv-python==4.4.0.40
 pytesseract==0.2.6
 tqdm==4.44.1
 timecode==1.2.0
@@ -9,4 +9,4 @@ Flask-DebugToolbar==0.10.1
 Flask-RESTful==0.3.7
 Flask-WTF==0.14.2
 
-git+https://github.com/clamsproject/clams-python-sdk.git@dev
+clams-python
