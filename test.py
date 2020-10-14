@@ -1,21 +1,18 @@
+## run in a docker with data directory mounted with mmif, and video subdirectorys
+## -data
+## --mmif
+## --- cpb-aacip-29-01pg4g2x.h264.mmif
+## --video
+## --- cpb-aacip-29-01pg4g2x.h264
+
 import sys
 import json
-from slatedetect import SlateDetection
+from app import SlateDetection
 from datetime import datetime
 
 st = datetime.now()
 sd = SlateDetection()
-a = open(sys.argv[1])
-b = a.read()
-c = sd.annotate(b)
-with open("../test-jsons/slate-detect.json", "w") as f:
-    f.write(str(c))
-
-# for i in c.views:
-#     a = i.__dict__
-#     print (a)
-#     c = a.get("contains")
-#     bd = a.get("annotations")
-#     for d in bd:
-#         print (d.__dict__)
-# print (datetime.now()-st)
+with open("/data/mmif/cpb-aacip-29-01pg4g2x.h264.mp4.mmif", 'r') as in_f:
+    mmif_json = json.load(in_f)
+c = sd.annotate(mmif_json)
+print (c)
