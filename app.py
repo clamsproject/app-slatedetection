@@ -30,11 +30,10 @@ class SlateDetection(ClamsApp):
         # this mock-up method always returns true
         return True
 
-    def annotate(self, mmif_json):
-        mmif = Mmif(mmif_json, validate=False) ##todo 2020-10-14 kelleyl remove validate=False with new version of sdk
+    def annotate(self, mmif):
         video_filename = mmif.get_document_location(DocumentTypes.VideoDocument.value)
         slate_output = self.run_slatedetection(
-            video_filename, mmif_json
+            video_filename, mmif
         )
 
         new_view = mmif.new_view()
