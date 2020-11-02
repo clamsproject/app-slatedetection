@@ -1,5 +1,4 @@
 import os
-import timecode
 import PIL
 from imutils.video import FileVideoStream
 import torch
@@ -9,7 +8,7 @@ from torch.autograd import Variable
 from clams.serve import ClamsApp
 from clams.restify import Restifier
 from mmif.vocabulary import AnnotationTypes, DocumentTypes
-from mmif import Mmif, Annotation
+from mmif import Mmif
 
 
 class SlateDetection(ClamsApp):
@@ -30,21 +29,19 @@ class SlateDetection(ClamsApp):
         # this mock-up method always returns true
         return True
 
-    def annotate(self, mmif):
+    def annotate(self, mmif: Mmif):
         video_filename = mmif.get_document_location(DocumentTypes.VideoDocument.value)
         slate_output = self.run_slatedetection(
             video_filename, mmif
         )
-
         new_view = mmif.new_view()
-        contain = new_view.new_contain(AnnotationTypes.TimeFrame)
-        contain.producer = str(self.__class__)
-        for start_frame, end_frame in slate_output:
-            annotation = Annotation()
-            annotation.add_property("start", start_frame)
-            annotation.add_property("end", end_frame)
-            annotation.at_type = AnnotationTypes.TimeFrame
-            new_view.add_annotation(annotation)
+        for _id, frames in enumerate(slate_output):
+            start_frame, end_frame = frames
+            timeframe_annotation = new_view.new_annotation(f"tf{_id}", AnnotationTypes.TimeFrame)
+            timeframe_annotation.add_property("start", start_frame)
+            timeframe_annotation.add_property("end", end_frame)
+            timeframe_annotation.add_property("unit", "frame")
+            timeframe_annotation.add_property("frameType", "slate")
         return mmif
 
     @staticmethod
@@ -85,13 +82,7 @@ class SlateDetection(ClamsApp):
                     if in_slate:
                         in_slate = False
                         if counter - start_frame > 59:
-                            start_timecode = timecode.Timecode(
-                                framerate=30000 / 1001, frames=start_frame + 1
-                            )
-                            end_timecode = timecode.Timecode(
-                                framerate=30000 / 1001, frames=counter + 1
-                            )
-                            slate_result.append((start_timecode, end_timecode))
+                            slate_result.append((start_frame, counter))
                         if stop_after_one:
                             return slate_result
             counter += 1
