@@ -8,6 +8,5 @@ RUN pip install -r requirements.txt
 
 COPY ./ /app
 WORKDIR /app
-VOLUME /data
 
 CMD ["python", "app.py"]
