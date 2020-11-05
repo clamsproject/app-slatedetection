@@ -52,7 +52,7 @@ class SlateDetection(ClamsApp):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = torch.load(os.path.join("data", "slate_model.pth"))
         model.eval()
-        sample_ratio = 1
+        sample_ratio = 30
 
         def frame_is_slate(frame_):
             image_tensor = image_transforms(PIL.Image.fromarray(frame_)).float()
