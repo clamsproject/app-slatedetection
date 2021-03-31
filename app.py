@@ -5,7 +5,7 @@ import torch
 from torchvision import transforms
 from torch.autograd import Variable
 
-from clams.serve import ClamsApp
+from clams.app import ClamsApp
 from clams.restify import Restifier
 from mmif.vocabulary import AnnotationTypes, DocumentTypes
 from mmif import Mmif
@@ -13,30 +13,28 @@ from mmif import Mmif
 
 APP_VERSION = 0.1
 class SlateDetection(ClamsApp):
-    def appmetadata(self):
+    def _appmetadata(self):
         metadata = {
             "name": "Slate Detection",
             "description": "This tool detects slates.",
             "vendor": "Team CLAMS",
             "iri": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
             "requires": [DocumentTypes.VideoDocument],
-            "produces": [AnnotationTypes.TimeFrame],
+            "produces": [AnnotationTypes.TimeFrame]
         }
         return metadata
 
     def setupmetadata(self):
         return None
 
-    def sniff(self, mmif):
-        # this mock-up method always returns true
-        return True
-
-    def annotate(self, mmif: Mmif):
+    def _annotate(self, mmif: Mmif, **kwargs):
         video_filename = mmif.get_document_location(DocumentTypes.VideoDocument.value)
         slate_output = self.run_slatedetection(
-            video_filename, mmif
+            video_filename, mmif, **kwargs
         )
         new_view = mmif.new_view()
+        new_view.metadata.set_additional_property("parameters", kwargs.copy())
+        new_view.metadata['app'] = self.metadata["iri"]
         for _id, frames in enumerate(slate_output):
             start_frame, end_frame = frames
             timeframe_annotation = new_view.new_annotation(f"tf{_id}", AnnotationTypes.TimeFrame)
@@ -51,10 +49,10 @@ class SlateDetection(ClamsApp):
         image_transforms = transforms.Compose(
             [transforms.Resize(224), transforms.ToTensor()]
         )
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = torch.load(os.path.join("data", "slate_model.pth"))
-        model.eval()
-        sample_ratio = 30
+        sample_ratio = int(kwargs.get('sampleRatio', 30))
+        min_duration = int(kwargs.get('minFrameCount', 10))
+        stop_after_one = kwargs.get('stopAfterOne', False)
+        stop_at = int(kwargs.get('stopAt', 30*60*60*5)) # default 5 hours
 
         def frame_is_slate(frame_):
             image_tensor = image_transforms(PIL.Image.fromarray(frame_)).float()
@@ -72,7 +70,12 @@ class SlateDetection(ClamsApp):
         start_frame = None
         while fvs.running():
             frame = fvs.read()
-            if counter > (30 * 60 * 5):  ## about 5 minutes
+            if frame is None:
+                break
+            if counter > stop_at:
+                if in_slate:
+                    if counter - start_frame > min_duration:
+                        slate_result.append((start_frame, counter))
                 break
             if counter % sample_ratio == 0:
                 result = frame_is_slate(frame)
@@ -83,7 +86,7 @@ class SlateDetection(ClamsApp):
                 else:
                     if in_slate:
                         in_slate = False
-                        if counter - start_frame > 59:
+                        if counter - start_frame > min_duration:
                             slate_result.append((start_frame, counter))
                         if stop_after_one:
                             return slate_result
