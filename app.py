@@ -24,8 +24,11 @@ class SlateDetection(ClamsApp):
         }
         return metadata
 
-    def setupmetadata(self):
-        return None
+    def __init__(self):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = torch.load(os.path.join("data", "slate_model.pth"))
+        self.model.eval()
+        super().__init__()
 
     def _annotate(self, mmif: Mmif, **kwargs):
         video_filename = mmif.get_document_location(DocumentTypes.VideoDocument.value)
@@ -44,8 +47,8 @@ class SlateDetection(ClamsApp):
             timeframe_annotation.add_property("frameType", "slate")
         return mmif
 
-    @staticmethod
-    def run_slatedetection(video_filename, mmif=None, stop_after_one=True):
+
+    def run_slatedetection(self, video_filename, mmif=None, **kwargs):
         image_transforms = transforms.Compose(
             [transforms.Resize(224), transforms.ToTensor()]
         )
@@ -58,8 +61,8 @@ class SlateDetection(ClamsApp):
             image_tensor = image_transforms(PIL.Image.fromarray(frame_)).float()
             image_tensor = image_tensor.unsqueeze_(0)
             input = Variable(image_tensor)
-            input = input.to(device)
-            output = model(input)
+            input = input.to(self.device)
+            output = self.model(input)
             index = output.data.cpu().numpy().argmax()
             return index == 1
 
