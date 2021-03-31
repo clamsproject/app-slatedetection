@@ -1,4 +1,4 @@
-FROM jjanzic/docker-python3-opencv
+FROM jjanzic/docker-python3-opencv:opencv-4.0.0
 
 COPY ./requirements.txt /app/requirements.txt
 WORKDIR /app
