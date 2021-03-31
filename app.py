@@ -11,12 +11,14 @@ from mmif.vocabulary import AnnotationTypes, DocumentTypes
 from mmif import Mmif
 
 
+APP_VERSION = 0.1
 class SlateDetection(ClamsApp):
     def appmetadata(self):
         metadata = {
             "name": "Slate Detection",
             "description": "This tool detects slates.",
             "vendor": "Team CLAMS",
+            "iri": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
             "requires": [DocumentTypes.VideoDocument],
             "produces": [AnnotationTypes.TimeFrame],
         }

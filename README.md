@@ -1,3 +1,16 @@
+
+___
+# Parameters
+This CLAMS app accepts the following query parameters
+
+- pretty
+- sampleRatio: integer, default: 30
+- stopAt: integer, frame number to stop search
+- stopAfterOne: boolean, if true, will stop after first slate segment found
+
+---
+
+
 ### Using docker
 
 We provide a [`Dockerfile`](Dockerfile). If you want to run the slate detector as a docker container (not worrying about dependencies), build an image from the `Dockerfile` and run it with the target directory mounted to `/data`. Just MAKE SURE that target directory is writable by others (`chmod o+w $TARGET_DIR`). For example, 
