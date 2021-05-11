@@ -26,7 +26,7 @@ class SlateDetection(ClamsApp):
 
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = torch.load(os.path.join("data", "slate_model.pth"))
+        self.model = torch.load(os.path.join("data", "slate_model.pth"), map_location=torch.device('cpu'))
         self.model.eval()
         super().__init__()
 
