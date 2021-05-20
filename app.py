@@ -50,6 +50,8 @@ class SlateDetection(ClamsApp):
         new_view = mmif.new_view()
         new_view.metadata.set_additional_property("parameters", kwargs.copy())
         new_view.metadata['app'] = self.metadata["iri"]
+        new_view.metadata.new_contain(AnnotationTypes.TimeFrame)
+        slate_output = slate_output[1] ##todo 5/20/21 kelleylynch currently defaulting to msec output type for testing
         for _id, frames in enumerate(slate_output):
             start_frame, end_frame = frames
             timeframe_annotation = new_view.new_annotation(f"tf{_id}", AnnotationTypes.TimeFrame)
@@ -80,7 +82,8 @@ class SlateDetection(ClamsApp):
 
         cap = cv2.VideoCapture(video_filename)
         counter = 0
-        slate_result = []
+        frame_number_result = []
+        seconds_result = []
         in_slate = False
         start_frame = None
         start_seconds = None
@@ -91,7 +94,8 @@ class SlateDetection(ClamsApp):
             if counter > stop_at:
                 if in_slate:
                     if counter - start_frame > min_duration:
-                        slate_result.append((start_frame, counter))
+                        frame_number_result.append((start_frame, counter))
+                        seconds_result.append((start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC)))
                 break
             if counter % sample_ratio == 0:
                 result = frame_is_slate(frame)
@@ -99,15 +103,17 @@ class SlateDetection(ClamsApp):
                     if not in_slate:
                         in_slate = True
                         start_frame = counter
+                        start_seconds = cap.get(cv2.CAP_PROP_POS_MSEC)
                 else:
                     if in_slate:
                         in_slate = False
                         if counter - start_frame > min_duration:
-                            slate_result.append((start_frame, counter))
-                        if stop_after_one:
-                            return slate_result
+                            frame_number_result.append((start_frame, counter))
+                            seconds_result.append((start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC)))
+                    if stop_after_one:
+                            return frame_number_result, seconds_result
             counter += 1
-        return slate_result
+        return frame_number_result, seconds_result
 
 
 if __name__ == "__main__":
