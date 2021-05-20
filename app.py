@@ -2,6 +2,7 @@ import os
 import PIL
 from imutils.video import FileVideoStream
 import torch
+import cv2
 from torchvision import transforms
 from torch.autograd import Variable
 
