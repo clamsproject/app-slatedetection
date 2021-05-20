@@ -20,8 +20,9 @@ class SlateDetection(ClamsApp):
             "description": "This tool detects slates.",
             "vendor": "Team CLAMS",
             "iri": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
-            "requires": [DocumentTypes.VideoDocument],
-            "produces": [AnnotationTypes.TimeFrame]
+            "app": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
+            "requires": [DocumentTypes.VideoDocument.value],
+            "produces": [AnnotationTypes.TimeFrame.value]
         }
         return metadata
 
@@ -32,7 +33,9 @@ class SlateDetection(ClamsApp):
         super().__init__()
 
     def _annotate(self, mmif: Mmif, **kwargs):
+        logging.debug(f"loading document with type: {DocumentTypes.VideoDocument.value}")
         video_filename = mmif.get_document_location(DocumentTypes.VideoDocument.value)
+        logging.debug(f"video_filename: {video_filename}")
         slate_output = self.run_slatedetection(
             video_filename, mmif, **kwargs
         )
@@ -42,9 +45,9 @@ class SlateDetection(ClamsApp):
         for _id, frames in enumerate(slate_output):
             start_frame, end_frame = frames
             timeframe_annotation = new_view.new_annotation(f"tf{_id}", AnnotationTypes.TimeFrame)
-            timeframe_annotation.add_property("start", start_frame)
-            timeframe_annotation.add_property("end", end_frame)
-            timeframe_annotation.add_property("unit", "frame")
+            timeframe_annotation.add_property("start", int(start_frame))
+            timeframe_annotation.add_property("end", int(end_frame))
+            timeframe_annotation.add_property("unit", "msec")
             timeframe_annotation.add_property("frameType", "slate")
         return mmif
 
@@ -67,14 +70,15 @@ class SlateDetection(ClamsApp):
             index = output.data.cpu().numpy().argmax()
             return index == 1
 
-        fvs = FileVideoStream(video_filename).start()
+        cap = cv2.VideoCapture(video_filename)
         counter = 0
         slate_result = []
         in_slate = False
         start_frame = None
-        while fvs.running():
-            frame = fvs.read()
-            if frame is None:
+        start_seconds = None
+        while True:
+            ret, frame = cap.read()
+            if not ret:
                 break
             if counter > stop_at:
                 if in_slate:
