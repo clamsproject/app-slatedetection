@@ -1,6 +1,6 @@
 import os
 import PIL
-from imutils.video import FileVideoStream
+import logging
 import torch
 import cv2
 from torchvision import transforms
@@ -10,6 +10,14 @@ from clams.app import ClamsApp
 from clams.restify import Restifier
 from mmif.vocabulary import AnnotationTypes, DocumentTypes
 from mmif import Mmif
+
+logging.basicConfig(filename="log.log",
+                    filemode='a',
+                    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                    datefmt='%H:%M:%S',
+                    level=logging.DEBUG)
+
+logging.info("running slate detection")
 
 
 APP_VERSION = 0.1
