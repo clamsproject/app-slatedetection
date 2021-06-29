@@ -20,6 +20,8 @@ logging.basicConfig(
 )
 
 APP_VERSION = 0.1
+
+
 class SlateDetection(ClamsApp):
     def _appmetadata(self):
         metadata = {
@@ -67,8 +69,10 @@ class SlateDetection(ClamsApp):
         return clams.AppMetadata(**metadata)
 
     def __init__(self):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = torch.load(os.path.join("data", "slate_model.pth"), map_location=torch.device('cpu'))
+        self.device = torch.device("cpu")
+        self.model = torch.load(
+            os.path.join("data", "slate_model.pth"), map_location=torch.device("cpu")
+        )
         self.model.eval()
         super().__init__()
 
@@ -111,10 +115,10 @@ class SlateDetection(ClamsApp):
         image_transforms = transforms.Compose(
             [transforms.Resize(224), transforms.ToTensor()]
         )
-        sample_ratio = int(kwargs.get('sampleRatio', 30))
-        min_duration = int(kwargs.get('minFrameCount', 10))
-        stop_after_one = kwargs.get('stopAfterOne', False)
-        stop_at = int(kwargs.get('stopAt', 30*60*60*5)) # default 5 hours
+        sample_ratio = int(kwargs.get("sampleRatio", 30))
+        min_duration = int(kwargs.get("minFrameCount", 10))
+        stop_after_one = kwargs.get("stopAfterOne", True)
+        stop_at = int(kwargs.get("stopAt", 30 * 60 * 60 * 5))  # default 5 hours
 
         def frame_is_slate(frame_):
             image_tensor = image_transforms(PIL.Image.fromarray(frame_)).float()
@@ -140,7 +144,9 @@ class SlateDetection(ClamsApp):
                 if in_slate:
                     if counter - start_frame > min_duration:
                         frame_number_result.append((start_frame, counter))
-                        seconds_result.append((start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC)))
+                        seconds_result.append(
+                            (start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC))
+                        )
                 break
             if counter % sample_ratio == 0:
                 result = frame_is_slate(frame)
@@ -154,9 +160,11 @@ class SlateDetection(ClamsApp):
                         in_slate = False
                         if counter - start_frame > min_duration:
                             frame_number_result.append((start_frame, counter))
-                            seconds_result.append((start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC)))
+                            seconds_result.append(
+                                (start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC))
+                            )
                     if stop_after_one:
-                            return frame_number_result, seconds_result
+                        return frame_number_result, seconds_result
             counter += 1
         return frame_number_result, seconds_result
 
