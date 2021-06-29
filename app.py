@@ -1,5 +1,4 @@
 import os
-import PIL
 import logging
 import torch
 import cv2
@@ -17,8 +16,13 @@ logging.basicConfig(filename="log.log",
                     datefmt='%H:%M:%S',
                     level=logging.DEBUG)
 
-logging.info("running slate detection")
-
+logging.basicConfig(
+    filename="log.log",
+    filemode="a",
+    format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+    level=logging.INFO,
+)
 
 APP_VERSION = 0.1
 class SlateDetection(ClamsApp):
@@ -40,9 +44,9 @@ class SlateDetection(ClamsApp):
         self.model.eval()
         super().__init__()
 
-    def _annotate(self, mmif: Mmif, **kwargs):
-        logging.debug(f"loading document with type: {DocumentTypes.VideoDocument.value}")
-        video_filename = mmif.get_document_location(DocumentTypes.VideoDocument.value)
+    def _annotate(self, mmif, **kwargs):
+        logging.debug(f"loading document with type: {DocumentTypes.VideoDocument}")
+        video_filename = mmif.get_document_location(DocumentTypes.VideoDocument)
         logging.debug(f"video_filename: {video_filename}")
         slate_output = self.run_slatedetection(
             video_filename, mmif, **kwargs
