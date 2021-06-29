@@ -1,4 +1,4 @@
-FROM jjanzic/docker-python3-opencv:opencv-4.0.0
+FROM clamsproject/clams-python-opencv4
 
 COPY ./requirements.txt /app/requirements.txt
 WORKDIR /app
