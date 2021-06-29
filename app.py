@@ -1,20 +1,15 @@
 import os
 import logging
+import PIL
+import clams
 import torch
 import cv2
 from torchvision import transforms
 from torch.autograd import Variable
-
 from clams.app import ClamsApp
 from clams.restify import Restifier
 from mmif.vocabulary import AnnotationTypes, DocumentTypes
-from mmif import Mmif
-
-logging.basicConfig(filename="log.log",
-                    filemode='a',
-                    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
-                    datefmt='%H:%M:%S',
-                    level=logging.DEBUG)
+from mmif import Document
 
 logging.basicConfig(
     filename="log.log",
@@ -30,13 +25,46 @@ class SlateDetection(ClamsApp):
         metadata = {
             "name": "Slate Detection",
             "description": "This tool detects slates.",
-            "vendor": "Team CLAMS",
-            "iri": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
-            "app": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
-            "requires": [DocumentTypes.VideoDocument.value],
-            "produces": [AnnotationTypes.TimeFrame.value]
+            "app_version": str(APP_VERSION),
+            "license": "MIT",
+            "identifier": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
+            "input": [{"@type": DocumentTypes.VideoDocument, "required": True}],
+            "output": [{"@type": AnnotationTypes.TimeFrame, "properties": {"frameType": "string"}}],
+            "parameters": [
+                {
+                    "name": "timeUnit",
+                    "type": "string",
+                    "choices": ["frames", "milliseconds"],
+                    "default": "msec",
+                    "description": "Unit for output typeframe.",
+                },
+                {
+                    "name": "sampleRatio",
+                    "type": "integer",
+                    "default": "30",
+                    "description": "Frequency to sample frames.",
+                },
+                {
+                    "name": "stopAt",
+                    "type": "integer",
+                    "default": 30 * 60 * 60 * 5,
+                    "description": "Frame number to stop processing",
+                },
+                {
+                    "name": "stopAfterOne",
+                    "type": "boolean",
+                    "default": True,
+                    "description": "When True, processing stops after first timeframe is found.",
+                },
+                {
+                    "name": "minFrameCount",
+                    "type": "integer",
+                    "default": 10,  # minimum value = 1 todo how to include minimum
+                    "description": "Minimum number of frames required for a timeframe to be included in the output",
+                },
+            ],
         }
-        return metadata
+        return clams.AppMetadata(**metadata)
 
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -48,25 +76,38 @@ class SlateDetection(ClamsApp):
         logging.debug(f"loading document with type: {DocumentTypes.VideoDocument}")
         video_filename = mmif.get_document_location(DocumentTypes.VideoDocument)
         logging.debug(f"video_filename: {video_filename}")
-        slate_output = self.run_slatedetection(
-            video_filename, mmif, **kwargs
-        )
+        config = self.get_configuration(**kwargs)
+
         new_view = mmif.new_view()
-        new_view.metadata.set_additional_property("parameters", kwargs.copy())
-        new_view.metadata['app'] = self.metadata["iri"]
-        new_view.metadata.new_contain(AnnotationTypes.TimeFrame)
-        slate_output = slate_output[1] ##todo 5/20/21 kelleylynch currently defaulting to msec output type for testing
+        self.sign_view(new_view, config)
+
+        unit = "milliseconds" if "unit" not in kwargs else kwargs["unit"]
+        new_view.new_contain(
+            AnnotationTypes.TimeFrame,
+            timeUnit=unit,
+            document=mmif.get_documents_by_type(DocumentTypes.VideoDocument)[0].id
+        )
+        slate_output = self.run_slatedetection(video_filename, mmif, new_view, **kwargs)
+        if unit == "milliseconds":
+            slate_output = slate_output[1]
+        elif unit == "frames":
+            slate_output = slate_output[0]
+        else:
+            raise TypeError(
+                "invalid unit type"
+            )  ##todo 6/29/21 kelleylynch is handling valid input types be moved to sdk?
         for _id, frames in enumerate(slate_output):
             start_frame, end_frame = frames
-            timeframe_annotation = new_view.new_annotation(f"tf{_id}", AnnotationTypes.TimeFrame)
+            timeframe_annotation = new_view.new_annotation(AnnotationTypes.TimeFrame)
             timeframe_annotation.add_property("start", int(start_frame))
             timeframe_annotation.add_property("end", int(end_frame))
-            timeframe_annotation.add_property("unit", "msec")
             timeframe_annotation.add_property("frameType", "slate")
         return mmif
 
 
-    def run_slatedetection(self, video_filename, mmif=None, **kwargs):
+    def run_slatedetection(
+        self, video_filename, mmif, view, **kwargs
+    ):  # todo 6/1/21 kelleylynch this could be optimized by generating a batch of frames
         image_transforms = transforms.Compose(
             [transforms.Resize(224), transforms.ToTensor()]
         )
