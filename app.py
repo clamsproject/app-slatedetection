@@ -28,7 +28,8 @@ class SlateDetection(ClamsApp):
             "name": "Slate Detection",
             "description": "This tool detects slates.",
             "app_version": str(APP_VERSION),
-            "license": "MIT",
+            "app_license": "MIT",
+            "url": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
             "identifier": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
             "input": [{"@type": DocumentTypes.VideoDocument, "required": True}],
             "output": [{"@type": AnnotationTypes.TimeFrame, "properties": {"frameType": "string"}}],
@@ -37,7 +38,7 @@ class SlateDetection(ClamsApp):
                     "name": "timeUnit",
                     "type": "string",
                     "choices": ["frames", "milliseconds"],
-                    "default": "msec",
+                    "default": "frames",
                     "description": "Unit for output typeframe.",
                 },
                 {
@@ -81,11 +82,9 @@ class SlateDetection(ClamsApp):
         video_filename = mmif.get_document_location(DocumentTypes.VideoDocument)
         logging.debug(f"video_filename: {video_filename}")
         config = self.get_configuration(**kwargs)
-
+        unit = config["timeUnit"]
         new_view = mmif.new_view()
         self.sign_view(new_view, config)
-
-        unit = "milliseconds" if "unit" not in kwargs else kwargs["unit"]
         new_view.new_contain(
             AnnotationTypes.TimeFrame,
             timeUnit=unit,
