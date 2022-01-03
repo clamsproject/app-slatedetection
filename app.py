@@ -21,7 +21,8 @@ class SlateDetection(ClamsApp):
             "name": "Slate Detection",
             "description": "This tool detects slates.",
             "app_version": str(APP_VERSION),
-            "license": "MIT",
+            "app_license": "MIT",
+            "url": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
             "identifier": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
             "input": [{"@type": DocumentTypes.VideoDocument, "required": True}],
             "output": [{"@type": AnnotationTypes.TimeFrame, "properties": {"frameType": "string"}}],
@@ -42,19 +43,19 @@ class SlateDetection(ClamsApp):
                 {
                     "name": "stopAt",
                     "type": "integer",
-                    "default": 30 * 60 * 60 * 5,
+                    "default": f"{30 * 60 * 60 * 5}",
                     "description": "Frame number to stop processing",
                 },
                 {
                     "name": "stopAfterOne",
                     "type": "boolean",
-                    "default": True,
+                    "default": "true",
                     "description": "When True, processing stops after first timeframe is found.",
                 },
                 {
                     "name": "minFrameCount",
                     "type": "integer",
-                    "default": 10,  # minimum value = 1 todo how to include minimum
+                    "default": "10",  # minimum value = 1 todo how to include minimum
                     "description": "Minimum number of frames required for a timeframe to be included in the output",
                 },
             ],
