@@ -11,13 +11,6 @@ from clams.restify import Restifier
 from mmif.vocabulary import AnnotationTypes, DocumentTypes
 from mmif import Document
 
-logging.basicConfig(
-    filename="log.log",
-    filemode="a",
-    format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
-    datefmt="%H:%M:%S",
-    level=logging.INFO,
-)
 
 APP_VERSION = 0.1
 
