@@ -1,0 +1,7 @@
+The current slate detection model has been applied to 40 videos and the results reviewed by gbh. Slates were only detected in 8 of the 40 videos. All of the videos had slates however some of the slates are handwritten. Over this collection the current model has 100% precision, 20% recall, 60% fmeasure. The next step is to test with varying thresholds and look at the roc curve to determine a good default threshold. We may also decide to retrain with more or different data.
+
+The main challenge with evaluating the Slate Detection tool is that the performance will vary significantly based on the collection it is being applied too. The version of the tool that is currently being applied stops after finding the first instance of a slate. When evaluating the perfomance, how should we take this into account?
+
+The model was trained on approximately 200 slate images and 1000 non-slate images. The slate images were selected from videos that were annotated with slate start/stop timestamps by GBH. The non-slate images were randomly selected frames from the same videos, from the time segments not annotated as slates. 
+
+In order to improve the performance and understand the performance of the tool on various collections we need a more structured train/dev/test set. We could try testing with all of the frames from a collection being in the same split. This would give a more reliable idea of how the performance might look on an unseen collection. 
