@@ -9,7 +9,6 @@ from torch.autograd import Variable
 from clams.app import ClamsApp
 from clams.restify import Restifier
 from mmif.vocabulary import AnnotationTypes, DocumentTypes
-from mmif import Document
 
 
 APP_VERSION = 0.1
@@ -58,6 +57,12 @@ class SlateDetection(ClamsApp):
                     "default": "10",  # minimum value = 1 todo how to include minimum
                     "description": "Minimum number of frames required for a timeframe to be included in the output",
                 },
+                {
+                    "name": "threshold",
+                    "type": "number",
+                    "default": ".5",
+                    "description": "Threshold from  0-1, lower accepts more potential slates. ",
+                }
             ],
         }
         return clams.AppMetadata(**metadata)
@@ -85,7 +90,7 @@ class SlateDetection(ClamsApp):
             timeUnit=unit,
             document=mmif.get_documents_by_type(DocumentTypes.VideoDocument)[0].id
         )
-        slate_output = self.run_slatedetection(video_filename, mmif, new_view, **kwargs)
+        slate_output = self.run_slatedetection(video_filename, **kwargs)
         if unit == "milliseconds":
             slate_output = slate_output[1]
         elif unit == "frames":
@@ -102,9 +107,8 @@ class SlateDetection(ClamsApp):
             timeframe_annotation.add_property("frameType", "slate")
         return mmif
 
-
     def run_slatedetection(
-        self, video_filename, mmif, view, **kwargs
+        self, video_filename, **kwargs
     ):  # todo 6/1/21 kelleylynch this could be optimized by generating a batch of frames
         image_transforms = transforms.Compose(
             [transforms.Resize(224), transforms.ToTensor()]
@@ -114,14 +118,17 @@ class SlateDetection(ClamsApp):
         stop_after_one = kwargs.get("stopAfterOne", True)
         stop_at = int(kwargs.get("stopAt", 30 * 60 * 60 * 5))  # default 5 hours
 
-        def frame_is_slate(frame_):
+        threshold = .5 if "threshold" not in kwargs else float(kwargs["threshold"])
+
+        def frame_is_slate(frame_, _threshold=threshold):
             image_tensor = image_transforms(PIL.Image.fromarray(frame_)).float()
             image_tensor = image_tensor.unsqueeze_(0)
             input = Variable(image_tensor)
             input = input.to(self.device)
             output = self.model(input)
-            index = output.data.cpu().numpy().argmax()
-            return index == 1
+            output = torch.nn.Softmax()(output)
+            output = output.data.cpu().numpy()[0]
+            return output.data[1] > _threshold
 
         cap = cv2.VideoCapture(video_filename)
         counter = 0
