@@ -162,8 +162,8 @@ class SlateDetection(ClamsApp):
                             seconds_result.append(
                                 (start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC))
                             )
-                    if stop_after_one:
-                        return frame_number_result, seconds_result
+                        if stop_after_one:
+                            return frame_number_result, seconds_result
             counter += 1
         return frame_number_result, seconds_result
 
