@@ -1,122 +1,70 @@
-import os
+import argparse
 import logging
+import os
 import PIL
-import clams
 import torch
 import cv2
 from torchvision import transforms
 from torch.autograd import Variable
-from clams.app import ClamsApp
-from clams.restify import Restifier
-from mmif.vocabulary import AnnotationTypes, DocumentTypes
+from typing import Union
+from clams import ClamsApp, Restifier
+from mmif import Mmif, View, Annotation, Document, AnnotationTypes, DocumentTypes
 
 
-APP_VERSION = 0.1
-
-
-class SlateDetection(ClamsApp):
-    def _appmetadata(self):
-        metadata = {
-            "name": "Slate Detection",
-            "description": "This tool detects slates.",
-            "app_version": str(APP_VERSION),
-            "app_license": "MIT",
-            "url": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
-            "identifier": f"http://mmif.clams.ai/apps/slatedetect/{APP_VERSION}",
-            "input": [{"@type": DocumentTypes.VideoDocument, "required": True}],
-            "output": [{"@type": AnnotationTypes.TimeFrame, "properties": {"frameType": "string"}}],
-            "parameters": [
-                {
-                    "name": "timeUnit",
-                    "type": "string",
-                    "choices": ["frames", "milliseconds"],
-                    "default": "frames",
-                    "description": "Unit for output typeframe.",
-                },
-                {
-                    "name": "sampleRatio",
-                    "type": "integer",
-                    "default": "30",
-                    "description": "Frequency to sample frames.",
-                },
-                {
-                    "name": "stopAt",
-                    "type": "integer",
-                    "default": f"{30 * 60 * 60 * 5}",
-                    "description": "Frame number to stop processing",
-                },
-                {
-                    "name": "stopAfterOne",
-                    "type": "boolean",
-                    "default": "true",
-                    "description": "When True, processing stops after first timeframe is found.",
-                },
-                {
-                    "name": "minFrameCount",
-                    "type": "integer",
-                    "default": "10",  # minimum value = 1 todo how to include minimum
-                    "description": "Minimum number of frames required for a timeframe to be included in the output",
-                },
-                {
-                    "name": "threshold",
-                    "type": "number",
-                    "default": ".5",
-                    "description": "Threshold from  0-1, lower accepts more potential slates. ",
-                }
-            ],
-        }
-        return clams.AppMetadata(**metadata)
+class Slatedetection(ClamsApp):
 
     def __init__(self):
         self.device = torch.device("cpu")
         self.model = torch.load(
-            os.path.join("data", "slate_model.pth"), map_location=torch.device("cpu")
+            os.path.join("data","slate_model.pth"), map_location=torch.device("cpu")
         )
         self.model.eval()
         super().__init__()
 
-    def _annotate(self, mmif, **kwargs):
-        logging.debug(f"loading document with type: {DocumentTypes.VideoDocument}")
+    def _appmetadata(self):
+        #see metadata.py
+        pass
+
+    def _annotate(self, mmif: Union[str, dict, Mmif], **parameters) -> Mmif:
+        
+        logging.debug(f"loading documents with type: {DocumentTypes.VideoDocument}")
         video_filename = mmif.get_document_location(DocumentTypes.VideoDocument)
         logging.debug(f"video_filename: {video_filename}")
-        config = self.get_configuration(**kwargs)
+        config = self.get_configuration(**parameters)
         unit = config["timeUnit"]
         new_view = mmif.new_view()
-        self.sign_view(new_view, config)
         new_view.new_contain(
             AnnotationTypes.TimeFrame,
             timeUnit=unit,
             document=mmif.get_documents_by_type(DocumentTypes.VideoDocument)[0].id
         )
-        slate_output = self.run_slatedetection(video_filename, **kwargs)
+        slate_output = self.run_slatedetection(video_filename, **parameters)
         if unit == "milliseconds":
             slate_output = slate_output[1]
         elif unit == "frames":
             slate_output = slate_output[0]
         else:
             raise TypeError(
-                "invalid unit type"
-            )  ##todo 6/29/21 kelleylynch is handling valid input types be moved to sdk?
+                "invalid"
+            )
         for _id, frames in enumerate(slate_output):
             start_frame, end_frame = frames
             timeframe_annotation = new_view.new_annotation(AnnotationTypes.TimeFrame)
             timeframe_annotation.add_property("start", int(start_frame))
             timeframe_annotation.add_property("end", int(end_frame))
-            timeframe_annotation.add_property("frameType", "slate")
+            timeframe_annotation.add_property("frameType","slate")
         return mmif
 
-    def run_slatedetection(
-        self, video_filename, **kwargs
-    ):  # todo 6/1/21 kelleylynch this could be optimized by generating a batch of frames
+    def run_slatedetection(self, video_filename, **parameters):
         image_transforms = transforms.Compose(
             [transforms.Resize(224), transforms.ToTensor()]
         )
-        sample_ratio = int(kwargs.get("sampleRatio", 30))
-        min_duration = int(kwargs.get("minFrameCount", 10))
-        stop_after_one = kwargs.get("stopAfterOne", True)
-        stop_at = int(kwargs.get("stopAt", 30 * 60 * 60 * 5))  # default 5 hours
+        sample_ratio = int(parameters.get("sampleRatio", 30))
+        min_duration = int(parameters.get("minFrameCount", 10))
+        stop_after_one = parameters.get("stopAfterOne", True)
+        stop_at = int(parameters.get("stopAt", 30*60*60*5))
 
-        threshold = .5 if "threshold" not in kwargs else float(kwargs["threshold"])
+        threshold = 0.5 if "threshold" not in parameters else float(parameters["threshold"])
 
         def frame_is_slate(frame_, _threshold=threshold):
             image_tensor = image_transforms(PIL.Image.fromarray(frame_)).float()
@@ -124,10 +72,10 @@ class SlateDetection(ClamsApp):
             input = Variable(image_tensor)
             input = input.to(self.device)
             output = self.model(input)
-            output = torch.nn.Softmax()(output)
+            output = torch.nn.functional.softmax(output, dim=1)
             output = output.data.cpu().numpy()[0]
             return output.data[1] > _threshold
-
+        
         cap = cv2.VideoCapture(video_filename)
         counter = 0
         frame_number_result = []
@@ -143,13 +91,11 @@ class SlateDetection(ClamsApp):
                 if in_slate:
                     if counter - start_frame > min_duration:
                         frame_number_result.append((start_frame, counter))
-                        seconds_result.append(
-                            (start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC))
-                        )
-                break
+                        seconds_result.append((start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC)))
+                break 
             if counter % sample_ratio == 0:
                 result = frame_is_slate(frame)
-                if result:  # in slate
+                if result:
                     if not in_slate:
                         in_slate = True
                         start_frame = counter
@@ -159,9 +105,7 @@ class SlateDetection(ClamsApp):
                         in_slate = False
                         if counter - start_frame > min_duration:
                             frame_number_result.append((start_frame, counter))
-                            seconds_result.append(
-                                (start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC))
-                            )
+                            seconds_result.append((start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC)))
                         if stop_after_one:
                             return frame_number_result, seconds_result
             counter += 1
@@ -169,6 +113,22 @@ class SlateDetection(ClamsApp):
 
 
 if __name__ == "__main__":
-    slate_tool = SlateDetection()
-    slate_service = Restifier(slate_tool)
-    slate_service.run()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--port", action="store", default="5000", help="set port to listen"
+    )
+    parser.add_argument("--production", action="store_true", help="run gunicorn server")
+    # more arguments as needed
+    # parser.add_argument(more_arg...)
+
+    parsed_args = parser.parse_args()
+
+    # create the app instance
+    app = Slatedetection()
+
+    http_app = Restifier(app, port=int(parsed_args.port)
+    )
+    if parsed_args.production:
+        http_app.serve_production()
+    else:
+        http_app.run()
