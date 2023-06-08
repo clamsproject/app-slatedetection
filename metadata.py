@@ -27,10 +27,6 @@ def appmetadata() -> AppMetadata:
         app_license="MIT",
         identifier="slatedetection",  # should be a single string without whitespaces. If you don't intent to publish this app to the CLAMS app-directory, please use a full IRI format. 
         url="https://github.com/clams-project/app-slatedetection", 
-        
-        # this trick can also be useful (replace ANALYZER_NAME with the pypi dist nam
-        analyzer_version =[l.strip().rsplit('==')[-1] for l in open('requirements.txt').readlines() if re.match(r'^torchvision>=', l)][0],
-        analyzer_license="BSD"  # short name for a software license
     )
     # and then add I/O specifications: an app must have at least one input and ont output
     metadata.add_input(DocumentTypes.VideoDocument)
