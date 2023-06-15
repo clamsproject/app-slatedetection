@@ -69,4 +69,7 @@ def appmetadata() -> AppMetadata:
 # DO NOT CHANGE the main block
 if __name__ == '__main__':
     import sys
+    metadata = appmetadata()
+    for param in ClamsApp.universal_parameters:
+        metadata.add_parameter(**param)
     sys.stdout.write(appmetadata().jsonify(pretty=True))

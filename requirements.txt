@@ -1,9 +1,9 @@
 # Make sure clams-python version is explicitly specified, at least the lower bound
-clams-python==1.0.2
+clams-python==1.0.3
 
-opencv-python==4.5.2.54
+opencv-python==4.*
 torch==1.*
-torchvision>=0.10.0
+torchvision
 timecode==1.3.1
 Pillow==9.*
 
