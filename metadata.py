@@ -6,6 +6,7 @@ DO NOT CHANGE the name of the file
 
 from mmif import DocumentTypes, AnnotationTypes
 from clams.appmetadata import AppMetadata
+from clams.app import ClamsApp
 import re 
 
 APP_VERSION = 0.2
@@ -72,4 +73,4 @@ if __name__ == '__main__':
     metadata = appmetadata()
     for param in ClamsApp.universal_parameters:
         metadata.add_parameter(**param)
-    sys.stdout.write(appmetadata().jsonify(pretty=True))
+    sys.stdout.write(metadata.jsonify(pretty=True))
