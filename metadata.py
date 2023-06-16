@@ -27,7 +27,7 @@ def appmetadata() -> AppMetadata:
         description="This tool detects slates.",  # briefly describe what the purpose and features of the app
         app_license="MIT",
         identifier="slatedetection",  # should be a single string without whitespaces. If you don't intent to publish this app to the CLAMS app-directory, please use a full IRI format. 
-        url="https://github.com/clams-project/app-slatedetection", 
+        url="https://github.com/clamsproject/app-slatedetection", 
     )
     # and then add I/O specifications: an app must have at least one input and ont output
     metadata.add_input(DocumentTypes.VideoDocument)
