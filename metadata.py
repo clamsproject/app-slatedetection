@@ -7,21 +7,11 @@ DO NOT CHANGE the name of the file
 from mmif import DocumentTypes, AnnotationTypes
 from clams.appmetadata import AppMetadata
 from clams.app import ClamsApp
-import re 
 
-APP_VERSION = 0.2
+
 # DO NOT CHANGE the function name 
 def appmetadata() -> AppMetadata:
-    """
-    Function to set app-metadata values and return it as an ``AppMetadata`` obj.
-    Read these documentations before changing the code below
-    - https://sdk.clams.ai/appmetadata.html metadata specification. 
-    - https://sdk.clams.ai/autodoc/clams.appmetadata.html python API
     
-    :return: AppMetadata object holding all necessary information.
-    """
-    
-    # first set up some basic information
     metadata = AppMetadata(
         name="Slate Detection",
         description="This tool detects slates.",  # briefly describe what the purpose and features of the app
@@ -29,21 +19,19 @@ def appmetadata() -> AppMetadata:
         identifier="slatedetection",  # should be a single string without whitespaces. If you don't intent to publish this app to the CLAMS app-directory, please use a full IRI format. 
         url="https://github.com/clamsproject/app-slatedetection", 
     )
-    # and then add I/O specifications: an app must have at least one input and ont output
     metadata.add_input(DocumentTypes.VideoDocument)
     metadata.add_output(AnnotationTypes.TimeFrame, properties={"frameType":"string"})
     
-    # (optional) and finally add runtime parameter specifications
     metadata.add_parameter(name="timeUnit",
                            description="Unit for output typeframe",
                            type="string",
-                           choices= ["frames","milliseconds"],
+                           choices=["frames","milliseconds"],
                            default="frames")
     
     metadata.add_parameter(name="sampleRatio",
-                          description="Frequency to sample frames.",
-                          type="integer",
-                          default=30)
+                           description="Frequency to sample frames.",
+                           type="integer",
+                           default=30)
     
     metadata.add_parameter(name="stopAt",
                            description="Frame number to stop processing",

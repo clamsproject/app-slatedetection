@@ -30,9 +30,12 @@ class Slatedetection(ClamsApp):
         logging.debug(f"loading documents with type: {DocumentTypes.VideoDocument}")
         video_filename = mmif.get_document_location(DocumentTypes.VideoDocument)
         logging.debug(f"video_filename: {video_filename}")
-        config = self.get_configuration(**parameters)
-        unit = config["timeUnit"]
         new_view = mmif.new_view()
+        self.sign_view(new_view, parameters)
+        new_view.metadata.get_parameter()
+        # fill the params dict with the default values if not provided
+        parameters = self.get_configuration(**parameters)
+        unit = parameters["timeUnit"]
         new_view.new_contain(
             AnnotationTypes.TimeFrame,
             timeUnit=unit,
