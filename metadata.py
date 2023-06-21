@@ -20,7 +20,7 @@ def appmetadata() -> AppMetadata:
         url="https://github.com/clamsproject/app-slatedetection", 
     )
     metadata.add_input(DocumentTypes.VideoDocument)
-    metadata.add_output(AnnotationTypes.TimeFrame, properties={"frameType":"string"})
+    metadata.add_output(AnnotationTypes.TimeFrame, properties={"frameType":"slate"})
     
     metadata.add_parameter(name="timeUnit",
                            description="Unit for output typeframe",
