@@ -1,14 +1,16 @@
 import argparse
 import logging
 import os
-import PIL
-import torch
-import cv2
-from torchvision import transforms
-from torch.autograd import Variable
 from typing import Union
+
+import PIL
+import cv2
+import torch
 from clams import ClamsApp, Restifier
-from mmif import Mmif, View, Annotation, Document, AnnotationTypes, DocumentTypes
+from mmif import Mmif, AnnotationTypes, DocumentTypes
+from mmif.utils import video_document_helper as vdh
+from torch.autograd import Variable
+from torchvision import transforms
 
 
 class Slatedetection(ClamsApp):
@@ -28,48 +30,36 @@ class Slatedetection(ClamsApp):
     def _annotate(self, mmif: Union[str, dict, Mmif], **parameters) -> Mmif:
         
         logging.debug(f"loading documents with type: {DocumentTypes.VideoDocument}")
-        video_filename = mmif.get_document_location(DocumentTypes.VideoDocument)
-        logging.debug(f"video_filename: {video_filename}")
         new_view = mmif.new_view()
         self.sign_view(new_view, parameters)
-        new_view.metadata.get_parameter()
+        vds = mmif.get_documents_by_type(DocumentTypes.VideoDocument)
+        if vds:
+            vd = vds[0]
+        else:
+            return mmif
         # fill the params dict with the default values if not provided
-        parameters = self.get_configuration(**parameters)
-        unit = parameters["timeUnit"]
+        conf = self.get_configuration(**parameters)
+        unit = conf["timeUnit"]
         new_view.new_contain(
             AnnotationTypes.TimeFrame,
             timeUnit=unit,
-            document=mmif.get_documents_by_type(DocumentTypes.VideoDocument)[0].id
+            document=vd.id
         )
-        slate_output = self.run_slatedetection(video_filename, **parameters)
-        if unit == "milliseconds":
-            slate_output = slate_output[1]
-        elif unit == "frames":
-            slate_output = slate_output[0]
-        else:
-            raise TypeError(
-                "invalid"
-            )
-        for _id, frames in enumerate(slate_output):
-            start_frame, end_frame = frames
+        for slate in self.run_slatedetection(vd, **conf):
+            start_frame, end_frame = slate
             timeframe_annotation = new_view.new_annotation(AnnotationTypes.TimeFrame)
-            timeframe_annotation.add_property("start", int(start_frame))
-            timeframe_annotation.add_property("end", int(end_frame))
+            timeframe_annotation.add_property("start", vdh.convert(start_frame, 'f', unit, vd.get_property("fps")))
+            timeframe_annotation.add_property("end", vdh.convert(end_frame, 'f', unit, vd.get_property("fps")))
             timeframe_annotation.add_property("frameType","slate")
         return mmif
 
-    def run_slatedetection(self, video_filename, **parameters):
+    def run_slatedetection(self, vd, **parameters):
+        video_filename = vd.location_path()
+        logging.debug(f"video_filename: {video_filename}")
         image_transforms = transforms.Compose(
             [transforms.Resize(224), transforms.ToTensor()]
         )
-        sample_ratio = int(parameters.get("sampleRatio", 30))
-        min_duration = int(parameters.get("minFrameCount", 10))
-        stop_after_one = parameters.get("stopAfterOne", True)
-        stop_at = int(parameters.get("stopAt", 30*60*60*5))
-
-        threshold = 0.5 if "threshold" not in parameters else float(parameters["threshold"])
-
-        def frame_is_slate(frame_, _threshold=threshold):
+        def frame_is_slate(frame_, _threshold=parameters["threshold"]):
             image_tensor = image_transforms(PIL.Image.fromarray(frame_)).float()
             image_tensor = image_tensor.unsqueeze_(0)
             input = Variable(image_tensor)
@@ -79,40 +69,34 @@ class Slatedetection(ClamsApp):
             output = output.data.cpu().numpy()[0]
             return output.data[1] > _threshold
         
-        cap = cv2.VideoCapture(video_filename)
-        counter = 0
-        frame_number_result = []
-        seconds_result = []
+        cap = vdh.capture(vd)
+        frames_to_test = vdh.sample_frames(0, parameters['stopAt'], parameters['sampleRatio'])
+        logging.debug(f"frames_to_test: {frames_to_test}")
+        found_slates = []
         in_slate = False
         start_frame = None
-        start_seconds = None
-        while True:
+        cur_frame = frames_to_test[0]
+        for cur_frame in frames_to_test:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, cur_frame - 1)
             ret, frame = cap.read()
             if not ret:
                 break
-            if counter > stop_at:
+            logging.debug(f"cur_frame: {cur_frame}, slate? : {frame_is_slate(frame)}")
+            if frame_is_slate(frame):
+                if not in_slate:
+                    in_slate = True
+                    start_frame = cur_frame
+            else:
                 if in_slate:
-                    if counter - start_frame > min_duration:
-                        frame_number_result.append((start_frame, counter))
-                        seconds_result.append((start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC)))
-                break 
-            if counter % sample_ratio == 0:
-                result = frame_is_slate(frame)
-                if result:
-                    if not in_slate:
-                        in_slate = True
-                        start_frame = counter
-                        start_seconds = cap.get(cv2.CAP_PROP_POS_MSEC)
-                else:
-                    if in_slate:
-                        in_slate = False
-                        if counter - start_frame > min_duration:
-                            frame_number_result.append((start_frame, counter))
-                            seconds_result.append((start_seconds, cap.get(cv2.CAP_PROP_POS_MSEC)))
-                        if stop_after_one:
-                            return frame_number_result, seconds_result
-            counter += 1
-        return frame_number_result, seconds_result
+                    in_slate = False
+                    if cur_frame - start_frame > parameters['minFrameCount']:
+                        found_slates.append((start_frame, cur_frame))
+                    if parameters['stopAfterOne']:
+                        return found_slates
+        if in_slate:
+            if cur_frame - start_frame > parameters['minFrameCount']:
+                found_slates.append((start_frame, cur_frame))
+        return found_slates
 
 
 if __name__ == "__main__":
