@@ -14,16 +14,16 @@ def appmetadata() -> AppMetadata:
     
     metadata = AppMetadata(
         name="Slate Detection",
-        description="This tool detects slates.",  # briefly describe what the purpose and features of the app
+        description="This tool detects slates.",
         app_license="MIT",
-        identifier="slatedetection",  # should be a single string without whitespaces. If you don't intent to publish this app to the CLAMS app-directory, please use a full IRI format. 
+        identifier="slatedetection",
         url="https://github.com/clamsproject/app-slatedetection", 
     )
     metadata.add_input(DocumentTypes.VideoDocument)
     metadata.add_output(AnnotationTypes.TimeFrame, properties={"frameType":"slate"})
     
     metadata.add_parameter(name="timeUnit",
-                           description="Unit for output typeframe",
+                           description="Unit of time to use in output.",
                            type="string",
                            choices=["frames","seconds", "milliseconds"],
                            default="frames")
@@ -31,12 +31,12 @@ def appmetadata() -> AppMetadata:
     metadata.add_parameter(name="sampleRatio",
                            description="Frequency to sample frames.",
                            type="integer",
-                           default=30)
+                           default=30)  # ~1 frame per second
     
     metadata.add_parameter(name="stopAt",
                            description="Frame number to stop processing",
                            type="integer",
-                           default=30*60*60*5)
+                           default=5*60*30)  # ~5 minutes of video at 30fps
     
     metadata.add_parameter(name="stopAfterOne",
                            description="When True, processing stops after first timeframe is found",
@@ -51,7 +51,7 @@ def appmetadata() -> AppMetadata:
     metadata.add_parameter(name="threshold",
                            description="Threshold from 0-1, lower accepts more potential slates.",
                            type="number",
-                           default=0.5)
+                           default=0.7)
     return metadata
 
 

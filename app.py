@@ -16,15 +16,19 @@ from torchvision import transforms
 class Slatedetection(ClamsApp):
 
     def __init__(self):
-        self.device = torch.device("cpu")
+        if torch.cuda.is_available():
+            dev = "cuda:0"
+        else:
+            dev = "cpu"
+        self.device = torch.device(dev)
         self.model = torch.load(
-            os.path.join("data","slate_model.pth"), map_location=torch.device("cpu")
+            os.path.join("data", "slate_model.pth"), map_location=torch.device(dev)
         )
         self.model.eval()
         super().__init__()
 
     def _appmetadata(self):
-        #see metadata.py
+        # see metadata.py
         pass
 
     def _annotate(self, mmif: Union[str, dict, Mmif], **parameters) -> Mmif:
@@ -59,6 +63,7 @@ class Slatedetection(ClamsApp):
         image_transforms = transforms.Compose(
             [transforms.Resize(224), transforms.ToTensor()]
         )
+
         def frame_is_slate(frame_, _threshold=parameters["threshold"]):
             image_tensor = image_transforms(PIL.Image.fromarray(frame_)).float()
             image_tensor = image_tensor.unsqueeze_(0)
@@ -68,7 +73,7 @@ class Slatedetection(ClamsApp):
             output = torch.nn.functional.softmax(output, dim=1)
             output = output.data.cpu().numpy()[0]
             return output.data[1] > _threshold
-        
+
         cap = vdh.capture(vd)
         frames_to_test = vdh.sample_frames(0, parameters['stopAt'], parameters['sampleRatio'])
         logging.debug(f"frames_to_test: {frames_to_test}")
@@ -105,8 +110,6 @@ if __name__ == "__main__":
         "--port", action="store", default="5000", help="set port to listen"
     )
     parser.add_argument("--production", action="store_true", help="run gunicorn server")
-    # more arguments as needed
-    # parser.add_argument(more_arg...)
 
     parsed_args = parser.parse_args()
 
