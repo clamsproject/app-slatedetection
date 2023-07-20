@@ -12,6 +12,8 @@ from mmif.utils import video_document_helper as vdh
 from torch.autograd import Variable
 from torchvision import transforms
 
+# logging.basicConfig(level=logging.DEBUG)
+
 
 class Slatedetection(ClamsApp):
 
@@ -49,6 +51,7 @@ class Slatedetection(ClamsApp):
             timeUnit=unit,
             document=vd.id
         )
+        logging.debug(f"running slate detection with parameters: {conf}")
         for slate in self.run_slatedetection(vd, **conf):
             start_frame, end_frame = slate
             timeframe_annotation = new_view.new_annotation(AnnotationTypes.TimeFrame)

@@ -1,4 +1,4 @@
-clams-python==1.0.6
+clams-python==1.0.7
 
 opencv-python==4.*
 torch==1.*
