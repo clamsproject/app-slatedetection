@@ -25,7 +25,7 @@ def appmetadata() -> AppMetadata:
     metadata.add_parameter(name="timeUnit",
                            description="Unit of time to use in output.",
                            type="string",
-                           choices=["frames","seconds", "milliseconds"],
+                           choices=["frames", "seconds", "milliseconds"],
                            default="frames")
     
     metadata.add_parameter(name="sampleRatio",

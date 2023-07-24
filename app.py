@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import warnings
 from typing import Union
 
 import PIL
@@ -11,8 +12,6 @@ from mmif import Mmif, AnnotationTypes, DocumentTypes
 from mmif.utils import video_document_helper as vdh
 from torch.autograd import Variable
 from torchvision import transforms
-
-# logging.basicConfig(level=logging.DEBUG)
 
 
 class Slatedetection(ClamsApp):
@@ -35,13 +34,14 @@ class Slatedetection(ClamsApp):
 
     def _annotate(self, mmif: Union[str, dict, Mmif], **parameters) -> Mmif:
         
-        logging.debug(f"loading documents with type: {DocumentTypes.VideoDocument}")
+        self.logger.debug(f"loading documents with type: {DocumentTypes.VideoDocument}")
         new_view = mmif.new_view()
         self.sign_view(new_view, parameters)
         vds = mmif.get_documents_by_type(DocumentTypes.VideoDocument)
         if vds:
             vd = vds[0]
         else:
+            warnings.warn("No video document found in the input MMIF.")
             return mmif
         # fill the params dict with the default values if not provided
         conf = self.get_configuration(**parameters)
@@ -51,7 +51,7 @@ class Slatedetection(ClamsApp):
             timeUnit=unit,
             document=vd.id
         )
-        logging.debug(f"running slate detection with parameters: {conf}")
+        self.logger.debug(f"running slate detection with parameters: {conf}")
         for slate in self.run_slatedetection(vd, **conf):
             start_frame, end_frame = slate
             timeframe_annotation = new_view.new_annotation(AnnotationTypes.TimeFrame)
@@ -62,7 +62,7 @@ class Slatedetection(ClamsApp):
 
     def run_slatedetection(self, vd, **parameters):
         video_filename = vd.location_path()
-        logging.debug(f"video_filename: {video_filename}")
+        self.logger.debug(f"video_filename: {video_filename}")
         image_transforms = transforms.Compose(
             [transforms.Resize(224), transforms.ToTensor()]
         )
@@ -79,7 +79,7 @@ class Slatedetection(ClamsApp):
 
         cap = vdh.capture(vd)
         frames_to_test = vdh.sample_frames(0, parameters['stopAt'], parameters['sampleRatio'])
-        logging.debug(f"frames_to_test: {frames_to_test}")
+        self.logger.debug(f"frames_to_test: {frames_to_test}")
         found_slates = []
         in_slate = False
         start_frame = None
@@ -89,7 +89,7 @@ class Slatedetection(ClamsApp):
             ret, frame = cap.read()
             if not ret:
                 break
-            logging.debug(f"cur_frame: {cur_frame}, slate? : {frame_is_slate(frame)}")
+            self.logger.debug(f"cur_frame: {cur_frame}, slate? : {frame_is_slate(frame)}")
             if frame_is_slate(frame):
                 if not in_slate:
                     in_slate = True
@@ -109,9 +109,7 @@ class Slatedetection(ClamsApp):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--port", action="store", default="5000", help="set port to listen"
-    )
+    parser.add_argument("--port", action="store", default="5000", help="set port to listen")
     parser.add_argument("--production", action="store_true", help="run gunicorn server")
 
     parsed_args = parser.parse_args()
@@ -119,9 +117,9 @@ if __name__ == "__main__":
     # create the app instance
     app = Slatedetection()
 
-    http_app = Restifier(app, port=int(parsed_args.port)
-    )
+    http_app = Restifier(app, port=int(parsed_args.port))
     if parsed_args.production:
         http_app.serve_production()
     else:
+        app.logger.setLevel(logging.DEBUG)
         http_app.run()
